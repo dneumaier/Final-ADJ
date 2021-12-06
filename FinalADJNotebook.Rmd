@@ -89,30 +89,46 @@ This gives me a good idea of players who have won a lot of their games, but the 
 *Highest winrate with 40+ games
 *Highest winrate in major leagues (LCS, LCK, LEC, LPL, MSI (even though it is an event, it brings in international teams))
 ```{r}
+#Winrate with 40+ games
 CompleteData %>% filter(!is.na(player) & player != "unknown player") %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% filter(totalG > 40) %>% arrange(desc(Wins), desc(WR))
 
+#Winrate with 40+ games in majors (established above)
 CompleteData %>% filter(!is.na(player) & player != "unknown player" & (league %in% Majors)) %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% filter(totalG > 30) %>% arrange(desc(Wins), desc(WR))
 ```
 
 
-
 *Which team has the highest winrate (members may change, this evaluates the coach)?
+```{r}
+#Highest WR of all teams
+CompleteData %>% filter(!is.na(team)) %>% group_by(team, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% arrange(desc(Wins), desc(WR))
 
-*What things are most consistent in a fast win (A fast win will be defined as faster than 25 mins, I will need to create a new column for this)?
+#Only in Majors
+CompleteData %>% filter(!is.na(team) & (league %in% Majors)) %>% group_by(team, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% arrange(desc(Wins), desc(WR))
+
+#Considering teams as a whole (and this evaluates coaches, not players, teams) have played enough games that I don't have to sort by "Wins" first to see a valuable win rate, also sorting by league to get an idea for best team in each league
+CompleteData %>% filter(!is.na(team) & (league %in% Majors)) %>% group_by(team, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% arrange(league, desc(WR))
+```
+So that last table from the above data block is really interesting. Unintentionally, MSI was separated, but that can actually be useful because teams perform very differently internationally. MSI does also include some "minor" teams, but because they are the best of the minors, I don't mind it.
+Top teams from each Major region and MSI highest WR:
+*LCK: DWG KIA (DWG) 82% WR
+*LCS: Cloud9 (C9) 65% WR 
+*LEC: MAD Lions (MAD) 66% WR
+*LPL: Royal Never Give Up (RNG) 72% WR
+*MSI: Royal Never Give Up (RNG) 77% WR
+
+I think it was my rudimentary understanding (and loose knowledge prior of these wins) as these teams are long time region dominators and I expected RNG to win Worlds (because they did beat DWG at MSI), but it ended up being DWG KIA.
+
+*What things are most consistent in a fast win (A fast win will be defined as faster than (or equal to) 25 mins)? I do not care about Majors for this question, though fast wins will be more present in non-majors for sure (by nature and my knowledge of the game) 25 mins = 1500s. So removing individual players and looking at generalized teamwide stats, making the gametime less than or equal to 1500 seconds and making the result a win. Looking at early stats and total stats (so firsts and totals really)
+```{r}
+#Shockingly enough, it is actually more efficent for me to do this and list out only necessary things for early game
+FastWins <- CompleteData %>% filter(gameLengthSeconds <= 1500 & is.na(player) & result == 1) %>% group_by(gameid) %>% select(gameid, team, league, game, side, gameLengthSeconds, result, teamkills, teamdeaths, firstblood, firstdragon, dragons, infernals, mountains, clouds, oceans, elders, firstherald, heralds, firstbaron, barons, firsttower, towers, firstmidtower, firsttothreetowers, inhibitors, dpm, damagetakenperminute, visionscore, monsterkillsenemyjungle, goldat10, goldat15, xpat10, xpat15, csat10, csat15, killsat10, killsat15, assistsat10, assistsat15, deathsat10, deathsat15)
+```
+
 
 *DWG (Damwon Gaming, may also be referred to as DWGKIA) were world champions this year, how did they look during the year leading up to their win?
 
 *This might be the hardest question, any teams in major leagues (LCS, LCK, LPL, LEC) perform on average worse than major academy leagues (LCSA, EM (EUM), LDL, LAS (LCK Academey))
 
-My methodology was included in the final pitch and is a lot to repeat, but in short I will be focusing on Complete Data (and may go into partial)
+
 I will be focusing on what aspects in the early game (turret plates, first blood, first dragon) have the surest effect on wins
 and on the flip side, the games where an "upset" happened, which players were involved and what champions were involved?
-
-###Tutorials###
-
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
-
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
-
