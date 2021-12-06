@@ -31,9 +31,18 @@ data %>% group_by(gameid) %>% filter(!is.na(turretplates)) %>% select(gameid, da
 #15 plates is a major early lead, only happened 3 times
 
 #Curious as to which regions those three games were.
-CompleteData %>% group_by(gameid) %>% filter((playerid == "100" | playerid == "200") & (gameid == "ESPORTSTMNT03_2074070" | gameid == "ESPORTSTMNT06_1881146" | gameid == "ESPORTSTMNT02_2151778")) %>%
+CompleteData %>% filter((playerid == "100" | playerid == "200") & (gameid == "ESPORTSTMNT03_2074070" | gameid == "ESPORTSTMNT06_1881146" | gameid == "ESPORTSTMNT02_2151778")) %>%
   select(gameid, league, date, turretplates)
 #Another way to do this would be to filter not for playerid being a team but for turretplates equaling 15
-#The three leagues where absolute dominance occurred were HM (Hitpoint Masters) EM (EU Masters) and LCSA (League Championship Series Academy)
+#The three leagues where absolute dominance occurred were HM (Hitpoint Masters) EM (EU Masters) and LCSA (League Championship Series Academy), in other words all "minor league games"
+
+#Which player has the highest winrate (they may change teams)?
+#Which team has the highest winrate (members may change, this evaluates the coach)?
+#What things are most consistent in a fast win (A fast win will be defined as faster than 25 mins, I will need to create a new column for this)?
+#DWG were world champions this year, how did they look during the year leading up to their win?
+
+#My methodology was included in the final pitch and is a lot to repeat, but in short I will be focusing on Complete Data (and may go into partial)
+#I will be focusing on what aspects in the early game (turret plates, first blood, first dragon) have the surest effect on wins
+#and on the flip side, the games where an "upset" happened, which players were involved and what champions were involved?
 
 

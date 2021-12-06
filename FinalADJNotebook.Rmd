@@ -1,0 +1,118 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse) #bringing in tidyverse
+```
+
+calling the data data
+```{r}
+data <- read_csv("Data/2021_LoL_esports_match_data_from_OraclesElixir_20211004.csv")
+```
+
+A definitions page is available here: https://oracleselixir.com/definitions
+All relevant, included tournaments are here: https://oracleselixir.com/stats/players/byTournament, EM = EUM
+Defining additional terms like Major Leagues being the LCS, LCK, LEC, LPL and the international tournament MSI(Mid-Season Invitational)
+```{r}
+Majors <- c("LCS","LEC","LCK","LPL","MSI")
+```
+Minors will be written as not in Majors
+
+
+```{r}
+data %>% group_by(gameid) %>% count()
+```
+Grouping the data to verify what they are, 12 on each is correct (1 for each player and 1 for team 2 teams + 10 players=12 instances)
+
+```{r}
+data %>% group_by(gameid) %>% count() %>% arrange(desc(n()))
+```
+Verified by flipping the arrange that all are 12 (and no NAs for game count)
+
+```{r}
+data %>% group_by(datacompleteness) %>% count()
+```
+Checking what values appear under datacompleteness
+
+```{r}
+NACompletes <- data %>% filter(is.na(datacompleteness))
+```
+Just wanted to see what some of the NAs were, some of this might still be usable, but I might just focus on what follows
+
+This is likely what I will focus on using
+```{r}
+CompleteData <- data %>% filter(datacompleteness == "complete")
+```
+This represents 93,648/133,428 rows or about 61% of the data is complete, another 9% is partial (not shown)
+
+Filtering for games to find the max number of turret plates, removed desc to check for lowest
+```{r}
+data %>% group_by(gameid) %>% filter(!is.na(turretplates)) %>% select(gameid, datacompleteness, turretplates) %>% arrange(desc(turretplates))
+```
+0-15 is max as seen in game. Only outer turrets have plates, there are 3 outer turrets with 5 plates each so 
+15 plates is a major early lead, only happened 3 times
+
+Curious as to which regions those three games were.
+```{r}
+CompleteData %>% filter((playerid == "100" | playerid == "200") & (gameid == "ESPORTSTMNT03_2074070" | gameid == "ESPORTSTMNT06_1881146" | gameid == "ESPORTSTMNT02_2151778")) %>%
+  select(gameid, league, date, turretplates)
+```
+Another way to do this would be to filter not for playerid being a team but for turretplates equaling 15
+The three leagues where absolute dominance occurred were HM (Hitpoint Masters) EM (EU Masters) and LCSA (League Championship Series Academy), in other words all "minor league" games
+
+More Questions:
+
+*Which player has the highest winrate (they may change teams)?
+```{r}
+CompleteData %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), sum(result), totalG = n()) %>% arrange(desc(WR), desc(totalG))
+
+CompleteData %>% filter(player == "113") #checking math manually, so not much code here
+```
+
+Chim, Competition9, and Jozy all had a 100% Winrate but they were in amateur leagues. 16 wins could be a clean sweep of a tournament, it could be interesting to see where their teammates are. But more importantly, Bo is the only major league player (sans the player Xiaobai who was subbed in for a single game at an international tournament, it was likely his team that carried him) with a 100% Winrate and he has 10 games, which is pretty impressive, especially for a powerhouse region like the LPL. 
+
+```{r}
+CompleteData %>% filter(is.na(player)) %>% group_by(league) %>% summarize(totalG = n()/2) %>% arrange(desc(totalG))
+#I am immediately faced with a problem here, I have to filter where player is not na because the sets of data of just teams is NA so every team in each league balances each other out to 50% win rates, but I am keeping this here because it is a good way I think to get totals of games in each league. I am trimming it though.
+```
+NOTE ABOUT THE ABOVE TABLE: TOTAL GAMES IS HALVED BECAUSE EACH MATCH HAS TWO TEAMS AND IT WAS COUNTING BOTH TEAMS IN A SINGLE GAME.
+
+
+Time for what I was trying to tackle in the above table initially:
+```{r}
+CompleteData %>% filter(!is.na(player) & player != "unknown player") %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% arrange(desc(Wins), desc(WR))
+```
+Note: Found a new thing: even in complete data, "unknown player" is still a thing, redid it to remove that. 
+This gives me a good idea of players who have won a lot of their games, but the winrates still rise and fall between them, so I am going to do two things:
+*Highest winrate with 40+ games
+*Highest winrate in major leagues (LCS, LCK, LEC, LPL, MSI (even though it is an event, it brings in international teams))
+```{r}
+CompleteData %>% filter(!is.na(player) & player != "unknown player") %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% filter(totalG > 40) %>% arrange(desc(Wins), desc(WR))
+
+CompleteData %>% filter(!is.na(player) & player != "unknown player" & (league %in% Majors)) %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% filter(totalG > 30) %>% arrange(desc(Wins), desc(WR))
+```
+
+
+
+*Which team has the highest winrate (members may change, this evaluates the coach)?
+
+*What things are most consistent in a fast win (A fast win will be defined as faster than 25 mins, I will need to create a new column for this)?
+
+*DWG (Damwon Gaming, may also be referred to as DWGKIA) were world champions this year, how did they look during the year leading up to their win?
+
+*This might be the hardest question, any teams in major leagues (LCS, LCK, LPL, LEC) perform on average worse than major academy leagues (LCSA, EM (EUM), LDL, LAS (LCK Academey))
+
+My methodology was included in the final pitch and is a lot to repeat, but in short I will be focusing on Complete Data (and may go into partial)
+I will be focusing on what aspects in the early game (turret plates, first blood, first dragon) have the surest effect on wins
+and on the flip side, the games where an "upset" happened, which players were involved and what champions were involved?
+
+###Tutorials###
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
