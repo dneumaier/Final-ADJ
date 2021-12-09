@@ -17,6 +17,7 @@ All relevant, included tournaments are here: https://oracleselixir.com/stats/pla
 Defining additional terms like Major Leagues being the LCS, LCK, LEC, LPL and the international tournament MSI(Mid-Season Invitational)
 ```{r}
 Majors <- c("LCS","LEC","LCK","LPL","MSI")
+Academy <- c("LCSA", "EM", "LDL", "LAS")
 ```
 Minors will be written as not in Majors
 
@@ -122,8 +123,24 @@ I think it was my rudimentary understanding (and loose knowledge prior of these 
 ```{r}
 #Shockingly enough, it is actually more efficent for me to do this and list out only necessary things for early game
 FastWins <- CompleteData %>% filter(gameLengthSeconds <= 1500 & is.na(player) & result == 1) %>% group_by(gameid) %>% select(gameid, team, league, game, side, gameLengthSeconds, result, teamkills, teamdeaths, firstblood, firstdragon, dragons, infernals, mountains, clouds, oceans, elders, firstherald, heralds, firstbaron, barons, firsttower, towers, firstmidtower, firsttothreetowers, inhibitors, dpm, damagetakenperminute, visionscore, monsterkillsenemyjungle, goldat10, goldat15, xpat10, xpat15, csat10, csat15, killsat10, killsat15, assistsat10, assistsat15, deathsat10, deathsat15)
-```
 
+#This is still alot, reducing to fewer columns for the purpose of this I am designating first blood, first dragon, first herald and first tower as the most important early game objectives. I will compare how winning teams did in these categories compared to losing teams.
+
+FastWins2 <- FastWins %>% select(gameid, team, league, side, firstblood, firstdragon, firstherald, firsttower, result)
+FW3 <- FastWins2 %>% ungroup() %>% count(firstblood, firstdragon, firstherald, firsttower) %>% arrange(desc(n))#shows no NAs and aranged to see which combination of these early things is most important.
+
+#Moving onto losses so I can compare
+FastLoss <- CompleteData %>% filter(gameLengthSeconds <= 1500 & is.na(player) & result == 0) %>% group_by(gameid) %>% select(gameid, team, league, game, side, gameLengthSeconds, result, teamkills, teamdeaths, firstblood, firstdragon, dragons, infernals, mountains, clouds, oceans, elders, firstherald, heralds, firstbaron, barons, firsttower, towers, firstmidtower, firsttothreetowers, inhibitors, dpm, damagetakenperminute, visionscore, monsterkillsenemyjungle, goldat10, goldat15, xpat10, xpat15, csat10, csat15, killsat10, killsat15, assistsat10, assistsat15, deathsat10, deathsat15)
+
+FastLoss2 <- FastLoss %>% select(gameid, team, league, side, firstblood, firstdragon, firstherald, firsttower, result)
+
+#Losses for comparison
+FL3 <- FastLoss2 %>% ungroup() %>% count(firstblood, firstdragon, firstherald, firsttower) %>% arrange(desc(n))
+
+#joining for ACTUAL COMP
+FW3 %>% inner_join(FL3, by = c("firstblood", "firstdragon", "firstherald", "firsttower")) #n.x is wins, n.y is losses.
+```
+So just doing a manual analysis of this leads me to to conclusion that because the highest frequency for wins is that all four values are true (the team got those objectives) that securing all is critical for securing an early win.
 
 *DWG (Damwon Gaming, may also be referred to as DWGKIA) were world champions this year, how did they look during the year leading up to their win?
 
