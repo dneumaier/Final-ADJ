@@ -1,8 +1,10 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
-
+###EARLY ASSESSMENT###
 ```{r}
 library(tidyverse) #bringing in tidyverse
 ```
@@ -17,47 +19,65 @@ All relevant, included tournaments are here: https://oracleselixir.com/stats/pla
 Defining additional terms like Major Leagues being the LCS, LCK, LEC, LPL and the international tournament MSI(Mid-Season Invitational)
 ```{r}
 Majors <- c("LCS","LEC","LCK","LPL","MSI")
-Academy <- c("LCSA", "EM", "LDL", "LAS")
+Academy <- c("LCSA", "EM", "LDL", "LAS") #used less, but Academy teams are "Minor" teams in Major regions, so they are also pretty good, but have many tendencies similar to Minor leagues and are typically still worse at the game in comparison to their Major counterparts
 ```
-Minors will be written as not in Majors
+All other Minors will be written as not in Majors
 
 
 ```{r}
-data %>% group_by(gameid) %>% count()
+data %>%
+  group_by(gameid) %>%
+  count()
 ```
 Grouping the data to verify what they are, 12 on each is correct (1 for each player and 1 for team 2 teams + 10 players=12 instances)
 
 ```{r}
-data %>% group_by(gameid) %>% count() %>% arrange(desc(n()))
+data %>%
+  group_by(gameid) %>%
+  count() %>%
+  arrange(desc(n()))
 ```
 Verified by flipping the arrange that all are 12 (and no NAs for game count)
 
 ```{r}
-data %>% group_by(datacompleteness) %>% count()
+data %>%
+  group_by(datacompleteness) %>% count()
 ```
 Checking what values appear under datacompleteness
 
 ```{r}
-NACompletes <- data %>% filter(is.na(datacompleteness))
+NACompletes <- data %>%
+  filter(is.na(datacompleteness))
 ```
 Just wanted to see what some of the NAs were, some of this might still be usable, but I might just focus on what follows
 
 This is likely what I will focus on using
 ```{r}
-CompleteData <- data %>% filter(datacompleteness == "complete")
+CompleteData <- data %>%
+  filter(datacompleteness == "complete")
 ```
 This represents 93,648/133,428 rows or about 61% of the data is complete, another 9% is partial (not shown)
 
+Data ranges from 1/2/2021 to 10/3/2021 (default is sorted by date, so I just manually checked)
+
+
+###Analysis###
+
 Filtering for games to find the max number of turret plates, removed desc to check for lowest
 ```{r}
-data %>% group_by(gameid) %>% filter(!is.na(turretplates)) %>% select(gameid, datacompleteness, turretplates) %>% arrange(desc(turretplates))
+data %>%
+  group_by(gameid) %>%
+  filter(!is.na(turretplates)) %>%
+  select(gameid, datacompleteness, turretplates) %>%
+  arrange(desc(turretplates))
 ```
 0-15 is max as seen in game. Only outer turrets have plates, there are 3 outer turrets with 5 plates each so 
 15 plates is a major early lead, only happened 3 times
 
 Curious as to which regions those three games were.
 ```{r}
-CompleteData %>% filter((playerid == "100" | playerid == "200") & (gameid == "ESPORTSTMNT03_2074070" | gameid == "ESPORTSTMNT06_1881146" | gameid == "ESPORTSTMNT02_2151778")) %>%
+CompleteData %>%
+  filter((playerid == "100" | playerid == "200") & (gameid == "ESPORTSTMNT03_2074070" | gameid == "ESPORTSTMNT06_1881146" | gameid == "ESPORTSTMNT02_2151778")) %>%
   select(gameid, league, date, turretplates)
 ```
 Another way to do this would be to filter not for playerid being a team but for turretplates equaling 15
@@ -67,15 +87,23 @@ More Questions:
 
 *Which player has the highest winrate (they may change teams)?
 ```{r}
-CompleteData %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), sum(result), totalG = n()) %>% arrange(desc(WR), desc(totalG))
+CompleteData %>%
+  group_by(player, league) %>%
+  summarize(WR = sum(result)/n(), sum(result), totalG = n()) %>%
+  arrange(desc(WR), desc(totalG))
 
-CompleteData %>% filter(player == "113") #checking math manually, so not much code here
+CompleteData %>%
+  filter(player == "113") #checking math manually, so not much code here
 ```
 
 Chim, Competition9, and Jozy all had a 100% Winrate but they were in amateur leagues. 16 wins could be a clean sweep of a tournament, it could be interesting to see where their teammates are. But more importantly, Bo is the only major league player (sans the player Xiaobai who was subbed in for a single game at an international tournament, it was likely his team that carried him) with a 100% Winrate and he has 10 games, which is pretty impressive, especially for a powerhouse region like the LPL. 
 
 ```{r}
-CompleteData %>% filter(is.na(player)) %>% group_by(league) %>% summarize(totalG = n()/2) %>% arrange(desc(totalG))
+CompleteData %>%
+  filter(is.na(player)) %>%
+  group_by(league) %>%
+  summarize(totalG = n()/2) %>%
+  arrange(desc(totalG))
 #I am immediately faced with a problem here, I have to filter where player is not na because the sets of data of just teams is NA so every team in each league balances each other out to 50% win rates, but I am keeping this here because it is a good way I think to get totals of games in each league. I am trimming it though.
 ```
 NOTE ABOUT THE ABOVE TABLE: TOTAL GAMES IS HALVED BECAUSE EACH MATCH HAS TWO TEAMS AND IT WAS COUNTING BOTH TEAMS IN A SINGLE GAME.
@@ -83,7 +111,11 @@ NOTE ABOUT THE ABOVE TABLE: TOTAL GAMES IS HALVED BECAUSE EACH MATCH HAS TWO TEA
 
 Time for what I was trying to tackle in the above table initially:
 ```{r}
-CompleteData %>% filter(!is.na(player) & player != "unknown player") %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% arrange(desc(Wins), desc(WR))
+CompleteData %>%
+  filter(!is.na(player) & player != "unknown player") %>%
+  group_by(player, league) %>%
+  summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
+  arrange(desc(Wins), desc(WR))
 ```
 Note: Found a new thing: even in complete data, "unknown player" is still a thing, redid it to remove that. 
 This gives me a good idea of players who have won a lot of their games, but the winrates still rise and fall between them, so I am going to do two things:
@@ -91,25 +123,47 @@ This gives me a good idea of players who have won a lot of their games, but the 
 *Highest winrate in major leagues (LCS, LCK, LEC, LPL, MSI (even though it is an event, it brings in international teams))
 ```{r}
 #Winrate with 40+ games
-CompleteData %>% filter(!is.na(player) & player != "unknown player") %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% filter(totalG > 40) %>% arrange(desc(Wins), desc(WR))
+CompleteData %>%
+  filter(!is.na(player) & player != "unknown player") %>%
+  group_by(player, league) %>%
+  summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
+  filter(totalG > 40) %>%
+  arrange(desc(Wins), desc(WR))
 
 #Winrate with 40+ games in majors (established above)
-CompleteData %>% filter(!is.na(player) & player != "unknown player" & (league %in% Majors)) %>% group_by(player, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% filter(totalG > 30) %>% arrange(desc(Wins), desc(WR))
+CompleteData %>%
+  filter(!is.na(player) & player != "unknown player" & (league %in% Majors)) %>%
+  group_by(player, league) %>%
+  summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
+  filter(totalG > 30) %>%
+  arrange(desc(Wins), desc(WR))
 ```
 
 
 *Which team has the highest winrate (members may change, this evaluates the coach)?
 ```{r}
 #Highest WR of all teams
-CompleteData %>% filter(!is.na(team)) %>% group_by(team, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% arrange(desc(Wins), desc(WR))
+CompleteData %>%
+  filter(!is.na(team)) %>%
+  group_by(team, league) %>%
+  summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
+  arrange(desc(Wins), desc(WR))
 
 #Only in Majors
-CompleteData %>% filter(!is.na(team) & (league %in% Majors)) %>% group_by(team, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% arrange(desc(Wins), desc(WR))
+CompleteData %>%
+  filter(!is.na(team) & (league %in% Majors)) %>%
+  group_by(team, league) %>%
+  summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
+  arrange(desc(Wins), desc(WR))
 
 #Considering teams as a whole (and this evaluates coaches, not players, teams) have played enough games that I don't have to sort by "Wins" first to see a valuable win rate, also sorting by league to get an idea for best team in each league
-CompleteData %>% filter(!is.na(team) & (league %in% Majors)) %>% group_by(team, league) %>% summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>% arrange(league, desc(WR))
+CompleteData %>%
+  filter(!is.na(team) & (league %in% Majors) & is.na(player)) %>% group_by(team, league) %>%
+  summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
+  arrange(league, desc(WR))
 ```
-So that last table from the above data block is really interesting. Unintentionally, MSI was separated, but that can actually be useful because teams perform very differently internationally. MSI does also include some "minor" teams, but because they are the best of the minors, I don't mind it.
+So that last table from the above data block is really interesting. Unintentionally, MSI was separated, but that can actually be useful because teams perform very differently internationally (against harder/easier match ups). MSI does also include some "minor" teams, but because they are the best of the minors, I don't mind it. 
+
 Top teams from each Major region and MSI highest WR:
 *LCK: DWG KIA (DWG) 82% WR
 *LCS: Cloud9 (C9) 65% WR 
@@ -122,30 +176,123 @@ I think it was my rudimentary understanding (and loose knowledge prior of these 
 *What things are most consistent in a fast win (A fast win will be defined as faster than (or equal to) 25 mins)? I do not care about Majors for this question, though fast wins will be more present in non-majors for sure (by nature and my knowledge of the game) 25 mins = 1500s. So removing individual players and looking at generalized teamwide stats, making the gametime less than or equal to 1500 seconds and making the result a win. Looking at early stats and total stats (so firsts and totals really)
 ```{r}
 #Shockingly enough, it is actually more efficent for me to do this and list out only necessary things for early game
-FastWins <- CompleteData %>% filter(gameLengthSeconds <= 1500 & is.na(player) & result == 1) %>% group_by(gameid) %>% select(gameid, team, league, game, side, gameLengthSeconds, result, teamkills, teamdeaths, firstblood, firstdragon, dragons, infernals, mountains, clouds, oceans, elders, firstherald, heralds, firstbaron, barons, firsttower, towers, firstmidtower, firsttothreetowers, inhibitors, dpm, damagetakenperminute, visionscore, monsterkillsenemyjungle, goldat10, goldat15, xpat10, xpat15, csat10, csat15, killsat10, killsat15, assistsat10, assistsat15, deathsat10, deathsat15)
+FastWins <- CompleteData %>%
+  filter(gameLengthSeconds <= 1500 & is.na(player) & result == 1) %>%
+  group_by(gameid) %>%
+  select(gameid, team, league, game, side, gameLengthSeconds, result, teamkills, teamdeaths, firstblood, firstdragon, dragons, infernals, mountains, clouds, oceans, elders, firstherald, heralds, firstbaron, barons, firsttower, towers, firstmidtower, firsttothreetowers, inhibitors, dpm, damagetakenperminute, visionscore, monsterkillsenemyjungle, goldat10, goldat15, xpat10, xpat15, csat10, csat15, killsat10, killsat15, assistsat10, assistsat15, deathsat10, deathsat15)
 
 #This is still alot, reducing to fewer columns for the purpose of this I am designating first blood, first dragon, first herald and first tower as the most important early game objectives. I will compare how winning teams did in these categories compared to losing teams.
 
-FastWins2 <- FastWins %>% select(gameid, team, league, side, firstblood, firstdragon, firstherald, firsttower, result)
-FW3 <- FastWins2 %>% ungroup() %>% count(firstblood, firstdragon, firstherald, firsttower) %>% arrange(desc(n))#shows no NAs and aranged to see which combination of these early things is most important.
+FastWins2 <- FastWins %>%
+  select(gameid, team, league, side, firstblood, firstdragon, firstherald, firsttower, result)
+
+FW3 <- FastWins2 %>%
+  ungroup() %>% count(firstblood, firstdragon, firstherald, firsttower) %>% arrange(desc(n))#shows no NAs and aranged to see which combination of these early things is most important.
 
 #Moving onto losses so I can compare
-FastLoss <- CompleteData %>% filter(gameLengthSeconds <= 1500 & is.na(player) & result == 0) %>% group_by(gameid) %>% select(gameid, team, league, game, side, gameLengthSeconds, result, teamkills, teamdeaths, firstblood, firstdragon, dragons, infernals, mountains, clouds, oceans, elders, firstherald, heralds, firstbaron, barons, firsttower, towers, firstmidtower, firsttothreetowers, inhibitors, dpm, damagetakenperminute, visionscore, monsterkillsenemyjungle, goldat10, goldat15, xpat10, xpat15, csat10, csat15, killsat10, killsat15, assistsat10, assistsat15, deathsat10, deathsat15)
+FastLoss <- CompleteData %>%
+  filter(gameLengthSeconds <= 1500 & is.na(player) & result == 0) %>%
+  group_by(gameid) %>%
+  select(gameid, team, league, game, side, gameLengthSeconds, result, teamkills, teamdeaths, firstblood, firstdragon, dragons, infernals, mountains, clouds, oceans, elders, firstherald, heralds, firstbaron, barons, firsttower, towers, firstmidtower, firsttothreetowers, inhibitors, dpm, damagetakenperminute, visionscore, monsterkillsenemyjungle, goldat10, goldat15, xpat10, xpat15, csat10, csat15, killsat10, killsat15, assistsat10, assistsat15, deathsat10, deathsat15)
 
-FastLoss2 <- FastLoss %>% select(gameid, team, league, side, firstblood, firstdragon, firstherald, firsttower, result)
+FastLoss2 <- FastLoss %>%
+  select(gameid, team, league, side, firstblood, firstdragon, firstherald, firsttower, result)
 
 #Losses for comparison
-FL3 <- FastLoss2 %>% ungroup() %>% count(firstblood, firstdragon, firstherald, firsttower) %>% arrange(desc(n))
+FL3 <- FastLoss2 %>%
+  ungroup() %>%
+  count(firstblood, firstdragon, firstherald, firsttower) %>% arrange(desc(n))
 
 #joining for ACTUAL COMP
-FW3 %>% inner_join(FL3, by = c("firstblood", "firstdragon", "firstherald", "firsttower")) #n.x is wins, n.y is losses.
+FW3 %>%
+  inner_join(FL3, by = c("firstblood", "firstdragon", "firstherald", "firsttower")) #n.x is wins, n.y is losses.
 ```
-So just doing a manual analysis of this leads me to to conclusion that because the highest frequency for wins is that all four values are true (the team got those objectives) that securing all is critical for securing an early win.
+So just doing a manual analysis of this leads me to to conclusion that because the highest frequency for wins is that all four values are true (the team got those objectives) that securing all is critical for securing an early win. The most critical of the four it seems is actually first tower as it was secured in (one moment)
+```{r}
+sum(287, 128, 76, 72, 47, 28, 26, 8) #first tower
+sum(287, 128, 76, 26, 15, 10, 10, 3) #first blood for comparison
+```
+672 of the 757 games which is...
+```{r}
+672/757
+```
+89% of the wins secured first tower.
+
+But what teams that won secured none of those objectives. It happened 23 times, what were those games, what else did they excel in?
+
+```{r}
+FastWins %>%
+  filter(firstblood == 0 & firstdragon == 0 & firstherald == 0 & firsttower == 0) #pulling up the games where that is the case, where the four objectives that seemingly increase chances of winning if secured first are no there. 
+```
+Right off the bat, it is important to note that none of these major "comebacks" as I will call them were in a Major league, so this is likely less the result of excessive skill and more from mistakes the opponent team made. Also, very interesting to me is that only one of these games was played from the "Red" side.
+
+
+A note about sides:
+*Two sides, Red and Blue. Blue side (at least from this player's perspective) is easier as you have better visibility in general as the UI of the game is on the bottom of your screen (the opposite direction from where you generally are looking). Red side is more difficult as your map, your abilities, your items etc. in the UI can sometimes get in the way of seeing and visibility as you play in a third person perspective and the enemy comes from below your screen where visibility is already lacking. 
+
+*Another place this comes into play is the draft phase of a game (something that while there is a little bit of data on it, we do not have the draft order (we have the ban order) it is insufficient). The advantage is on redside as they can secure "counter pick," in other words a playable character that a player controls that is strong against the enemy team.
+
+There is actually an age old debate about how "Red" side is considered an "auto loss," how accurate is that?
+
+```{r}
+CompleteData %>% 
+  group_by(side) %>%
+  summarize(wins = (sum(result)), totalGames = n(), WR = (wins/totalGames))
+```
+Blue side has 21804 wins of 40758 games and Red has 18954 wins of that same amount which becomes a roughly 53% win rate for blue side and a 46% win rate for Red side. 
+
+According to this article from 2017, it is actually a longstanding issue: https://www.unrankedsmurfs.com/blog/lol-blue-side-advantage 
+
+Backing up for a bit, I would like to know how many "fast wins" were in Major leagues.
+```{r}
+FastWins %>%
+  filter(league %in% Majors)
+
+#adding in what about specifically only in "Academy"
+FastWins %>%
+  filter(league %in% Academy)
+```
+Actually a decent amount in Majors. 82 Majors games were fast wins compared to the over double that for Academy teams. Now, anecdotally looking at it, it seems there is a better balance of Red/Blue side in Majors versus Minors, so I will now look at that balance (but will focus on Academy teams).
+
+```{r}
+#basically just copied code from above to add to it
+CompleteData %>% 
+  filter(league %in% Majors) %>%
+  group_by(side) %>%
+  summarize(wins = (sum(result)), totalGames = n(), WR = (wins/totalGames))
+
+#For Academy
+CompleteData %>% 
+  filter(league %in% Academy) %>%
+  group_by(side) %>%
+  summarize(wins = (sum(result)), totalGames = n(), WR = (wins/totalGames))
+```
+Wow. It is WORSE the better you get, blue side advantage marginally becomes greater the more advanced the games are. In fact, based on the above article, it was only a 4% difference in 2017, meaning the advantage has only grown since then (and players have generally gotten better has time has gone on but a 9% difference now is crazy)
+
+Another question I have is then this, which side typically wins faster.
+```{r}
+CompleteData %>%
+  filter(gameLengthSeconds <= 1500 & is.na(player)) %>% #reminder that a fast game is under or equal to 25 mins or 1500 secs.
+  group_by(side) %>%
+  summarize(wins = sum(result), totalGames = n(), WR = (wins/totalGames))
+```
+OH MY. Blue side accounts for 60% of the fast wins, that is ridiculous. 
 
 *DWG (Damwon Gaming, may also be referred to as DWGKIA) were world champions this year, how did they look during the year leading up to their win?
+All previous lines of code have suggested that they were actually really good. They had a solid winrate, their team was the same throughout (so no substitutes, meaning everyone got max play time) and they had the highest overall winrate worldwide and in the LCK no less (one of the generally considered "stronger" leagues). I do not feel it is necessary to generate more code when they were at the top of the latter in every other stat I checked. 
 
-*This might be the hardest question, any teams in major leagues (LCS, LCK, LPL, LEC) perform on average worse than major academy leagues (LCSA, EM (EUM), LDL, LAS (LCK Academey))
+###Methodology###
 
+So the data came from an independent site that collects data for League of Legends and while some data was marked as complete, at times it still was not. The data takes place in countries all over the world and the time span is from 1/2/2021 to 10/3/2021. It includes data about nearly every aspect of the game except pick order and I reduced my analysis to complete data and then later fast wins and losses before backing out to complete data again to check on another question. 
 
-I will be focusing on what aspects in the early game (turret plates, first blood, first dragon) have the surest effect on wins
-and on the flip side, the games where an "upset" happened, which players were involved and what champions were involved?
+This game has a lot of factors and odds are I did not find everything that affects the early game. Early XP and Gold affect that as well, but this is a team based, objective based game, so looking at larger stats makes sense for establishing earlier wins whereas those smaller details establish how good an individual player is.
+
+###Graphs###
+
+Back in 2017, it was reported by unranked smurfs [https://www.unrankedsmurfs.com/blog/lol-blue-side-advantage] that blue side won on average 4% more games than red side. It attributes the advantage to a few factors, most notably being the camera view from the game and the placement of the UI in the game and pick order. As the game progressed and people got better at the game, players seem to have been able to take advantage of these seemingly minor differences between the sides and have over doubled this win disparity to now be a 9% difference in pro-level games (including in amateur leagues).
+
+What is more is that blue side seems to also carry a significance for winning faster. The difference in win rates is exponential when it comes to games under 25 minutes as blue side wins 60% of games that are played faster. The advantage is due to the same reasons as before but the improvement of players has only made it more drastic.
+
+The fast wins also have a number of variables that are often thought to carry significant advantage: first blood (the first kill of the game), first dragon and first herald (neutral objectives that can supply an advantage for the team by helping them with a passive buff or a powerful unit that destroys the last crucial objective), first tower. The advantage of the first tower is the most important and is an obtained objective in 89% of fast wins.
+
+The most secure way to win a game in League of Legends nowadays is to secure blue side and while it is optimal to obtain all four of the previously mentioned objects, towers should be your first priority.
