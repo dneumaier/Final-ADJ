@@ -29,25 +29,66 @@ data %>%
   group_by(gameid) %>%
   count()
 ```
-Grouping the data to verify what they are, 12 on each is correct (1 for each player and 1 for team 2 teams + 10 players=12 instances)
+Grouping the data to verify what they are, 12 on each is correct (1 for each player and 1 for team 2 teams + 10 players=12 instances)**
+
+**As noted later in the file and something I only now realize while reviewing this a few years later (I had not bothered to look again since I last turned this in because of other Academics taking priority) is that many gameids seem to be missing! Things like "ESPORTSTMNT04_1880348" are missing, and the only ones that are showing up are all numerical only. Whereas anything that actually includes a character is not on any of those 100 pages! And these gameids are plainly present within CompleteData, a dataset made later on. I can't help but wonder if some way in which the gameid values are inputted (since they differ in format) has affected how R is able to read such a value, but on the other hand, I can see them constrained to the box in the data so I really don't know what is going on. Even in later data sets these missing groups just suddenly appear, and I see no difference as to why. Is the data set too large to include all of them?
+
+Let's try something:
+```{r}
+data %>%
+  filter(datacompleteness == "complete") %>%
+  group_by(gameid) %>%
+  count()
+```
+Even after setting the data to be only games that had complete data thereby limiting the total to about half is that the dataset is still too large (at least for RStudio, after knitting, I can see that this table goes to the full 600+ pages)! This limited table view only goes up to about a hundred pages, therefore, I have another thing I want to try.
+
+```{r}
+CompleteGamesGameidCount <- data %>% #btw this is going to look exactly as it sounds. I'm attempting what I tried before just with putting it all in a table rather than relying on an in-line preview
+  filter(datacompleteness == "complete") %>%
+  group_by(gameid) %>%
+  count()
+#now, hypothetically, this should produce for me a new table which I can examine that will hopefully include every duplicate GameID. I know from later analysis that there is at least one game that has about 14 duplicates! So I should be able to find a gameid that when grouped in this table has a count of about 192 ((14 duplicates+ 1 original)*12 (for each corresponding row associated with each gameid as explained above)! Why did this not show up when I verified it in the next data block as I organized the count by descending order? I do not know, but here we go!
+
+CompleteGamesGameidCount #added so can be seen on HTML
+  
+CompleteGamesGameidCount %>%
+  filter(n != 12) #going to try and use this to filter out games where the expected 12 is 12 so I can see only the abnormalities.
+```
+In this table we do see that the data is not as clean as it may have been once supposed to be given previous analysis and the analysis done in this following block. Somehow, the arrange does not seem to be working properly either. In any case, there are actually TWO gameids with counts of 192 (ESPORTSTMNT04_1880348 and ESPORTSTMNT04_1880351) and even in the complete data here, there are still games (48 count which means 4 games) with gameids listed as NA which does not sound complete to me.
+
+```{r}
+CleanCompleteGamesGameidCount <- data %>%
+  filter((datacompleteness == "complete") & (!is.na(gameid)) & (!duplicated(gameid))) %>% #looking for complete data where the gameid is not NA and where the gameid is not duplicated, should return 1 for count for everything.
+  group_by(gameid) %>%
+  count() %>%
+  arrange(desc(n))
+
+CleanCompleteGamesGameidCount #added so you can see
+```
+
+duplicated is not a boolean we learned about in 2021, and I wish I had, it is a good way to get rid of these duplicates. I'm going to attempt applying this to the CompleteData tables.
 
 ```{r}
 data %>%
   group_by(gameid) %>%
-  count() %>%
-  arrange(desc(n()))
+  count %>%
+  arrange(desc(n))
 ```
-Verified by flipping the arrange that all are 12 (and no NAs for game count)
+Verified by flipping the arrange that all are 12 (and no NAs for game count)**
+**My old code was for some reason wrong. I had been taught to use arrange(desc(n())) like that, but according to online forums, I only need to put arrange(desc(n)), I actually distincly remember being taught that and it working before, but perhaps it is simply a Mandela effect. Either way, it was NOT verified in 2021, but is now that there are duplicates!
 
 ```{r}
 data %>%
-  group_by(datacompleteness) %>% count()
+  group_by(datacompleteness) %>%
+  count()
 ```
 Checking what values appear under datacompleteness
 
 ```{r}
 NACompletes <- data %>%
   filter(is.na(datacompleteness))
+
+NACompletes #added to be seen
 ```
 Just wanted to see what some of the NAs were, some of this might still be usable, but I might just focus on what follows
 
@@ -55,8 +96,38 @@ This is likely what I will focus on using
 ```{r}
 CompleteData <- data %>%
   filter(datacompleteness == "complete")
+
+CompleteData #added to be seen
+
+CleanCompleteData <- unique(CompleteData) %>%
+  filter(!is.na(gameid))#coming back to this from later because there are (as mentioned above) some games that are included a whopping 15 times. I'm hoping that this function removes duplicated rows where all the data is the same and not just based on gameid. I am also removing any NA gameids since I operate on the assumption later that all gameids in complete data had gameids.
+
+CleanCompleteData #added to be seen
+  
 ```
-This represents 93,648/133,428 rows or about 61% of the data is complete, another 9% is partial (not shown)
+This represents 93,648/133,428 rows or about 61% of the data is complete, another 9% is partial (not shown) #I don't know where these numbers came from. The data has 133,428 objects yes, but CompleteData (even back then) seems to have only reported 81,516 objects, not 93,648. So this is another error, how on earth did I get an A on this??
+
+It seems to have worked, and somehow those numbers don't exist. With CleanCompleteData, the total is 81,144 objects which I think makes sense because when you remove the 48 lines from gameids being NA (even in the complete data!) and the two sets of 180 lines (totaling to 360) well I am honestly confused that doesn't math out. It would seem to me that there are still about 36 more lines that need to be removed. Let's just check again if there are any duplicate games.
+
+```{r}
+CleanCompleteGameidCount <- CleanCompleteData %>%
+  group_by(gameid) %>%
+  count() %>%
+  arrange(desc(n))
+
+CleanCompleteGameidCount #added to be seen
+```
+Yes... intriguing, even after things have been made unique with CleanCompleteData there is still an issue with the gameid ESPORTSTMNT04_1880348 as it seems to have exactly 48 references to it when it should only have 12, accounting for our 36 lines that are yet to be removed.
+
+I'm going to toy with this because this is data I'm familiar with and am continuing to learn with it.
+
+```{r}
+CleanCompleteData2 <- CleanCompleteData %>%
+  distinct(gameid, playerid, .keep_all = TRUE) #what this is doing is it is targeting those 48 lines that are duplicated by saying we want to keep every line that has a distinct gameid and playerid because each pair of those is a completely unique combo: gameid and 1-10 (and 100 and 200 for the teams) thus eleminating any other duplicated lines. I'm interested to see how this affects the rest of the data. 
+
+CleanCompleteData2 #added to be seen
+```
+According to math, that maths out as CleanCompleteData2 has successfully removed all duplicated rows coming to a total of 81,108 out of the original 133,428 rows.
 
 Data ranges from 1/2/2021 to 10/3/2021 (default is sorted by date, so I just manually checked)
 
@@ -65,19 +136,22 @@ Data ranges from 1/2/2021 to 10/3/2021 (default is sorted by date, so I just man
 
 Filtering for games to find the max number of turret plates, removed desc to check for lowest
 ```{r}
-data %>%
+CompleteTurretPlates <- data %>% # as a later update, I'm moving this into its own dataframe rather than relying on a tibble since this is larger than 1000 rows. 
   group_by(gameid) %>%
   filter(!is.na(turretplates)) %>%
   select(gameid, datacompleteness, turretplates) %>%
   arrange(desc(turretplates))
+
+CompleteTurretPlates #added to be seen
 ```
 0-15 is max as seen in game. Only outer turrets have plates, there are 3 outer turrets with 5 plates each so 
 15 plates is a major early lead, only happened 3 times
 
 Curious as to which regions those three games were.
 ```{r}
-CompleteData %>%
-  filter((playerid == "100" | playerid == "200") & (gameid == "ESPORTSTMNT03_2074070" | gameid == "ESPORTSTMNT06_1881146" | gameid == "ESPORTSTMNT02_2151778")) %>%
+CleanCompleteData2 %>% #As of November 9, All following references to CompleteData are being updated to CleanCompleteData2
+  filter((playerid == "100" | playerid == "200") #this calls for the teams
+         & (gameid == "ESPORTSTMNT03_2074070" | gameid == "ESPORTSTMNT06_1881146" | gameid == "ESPORTSTMNT02_2151778")) %>%
   select(gameid, league, date, turretplates)
 ```
 Another way to do this would be to filter not for playerid being a team but for turretplates equaling 15
@@ -87,19 +161,21 @@ More Questions:
 
 *Which player has the highest winrate (they may change teams)?
 ```{r}
-CompleteData %>%
+PlayerWRs <- CleanCompleteData2 %>% #also updating this to be its own dataframe because it is over 1000 lines
   group_by(player, league) %>%
   summarize(WR = sum(result)/n(), sum(result), totalG = n()) %>%
   arrange(desc(WR), desc(totalG))
 
-CompleteData %>%
+PlayerWRs #added to be seen
+
+CompleteData %>% #I don't remember why I was checking for this player, I think to verify he was a player and not an accidental input
   filter(player == "113") #checking math manually, so not much code here
 ```
 
 Chim, Competition9, and Jozy all had a 100% Winrate but they were in amateur leagues. 16 wins could be a clean sweep of a tournament, it could be interesting to see where their teammates are. But more importantly, Bo is the only major league player (sans the player Xiaobai who was subbed in for a single game at an international tournament, it was likely his team that carried him) with a 100% Winrate and he has 10 games, which is pretty impressive, especially for a powerhouse region like the LPL. 
 
 ```{r}
-CompleteData %>%
+CleanCompleteData2 %>%
   filter(is.na(player)) %>%
   group_by(league) %>%
   summarize(totalG = n()/2) %>%
@@ -111,53 +187,61 @@ NOTE ABOUT THE ABOVE TABLE: TOTAL GAMES IS HALVED BECAUSE EACH MATCH HAS TWO TEA
 
 Time for what I was trying to tackle in the above table initially:
 ```{r}
-CompleteData %>%
+PlayerWRs2 <- CleanCompleteData2 %>% #again, updating to be its own dataframe because the results are more than 1000
   filter(!is.na(player) & player != "unknown player") %>%
   group_by(player, league) %>%
   summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
   arrange(desc(Wins), desc(WR))
+
+PlayerWRs2 #added to be seen
 ```
 Note: Found a new thing: even in complete data, "unknown player" is still a thing, redid it to remove that. 
 This gives me a good idea of players who have won a lot of their games, but the winrates still rise and fall between them, so I am going to do two things:
 *Highest winrate with 40+ games
 *Highest winrate in major leagues (LCS, LCK, LEC, LPL, MSI (even though it is an event, it brings in international teams))
 ```{r}
-#Winrate with 40+ games
-CompleteData %>%
+#Winrate with 30+ games
+CleanCompleteData2 %>%
   filter(!is.na(player) & player != "unknown player") %>%
   group_by(player, league) %>%
   summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
   filter(totalG > 40) %>%
   arrange(desc(Wins), desc(WR))
 
-#Winrate with 40+ games in majors (established above)
-CompleteData %>%
+#Winrate with 30+ games in majors (established above)
+CleanCompleteData2 %>%
   filter(!is.na(player) & player != "unknown player" & (league %in% Majors)) %>%
   group_by(player, league) %>%
   summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
   filter(totalG > 30) %>%
   arrange(desc(Wins), desc(WR))
+
+#I'm also just now curious, 2 years later, to see it not arranged by wins and win rate but just grouped by each player so they can be seen side by side if they were ever in different leagues within this year. I have to remove the total games being more than 30 so that I can see their comparison to at the least MSI
+CleanCompleteData2 %>%
+  filter(!is.na(player) & player != "unknown player" & (league %in% Majors)) %>%
+  group_by(player, league) %>%
+  summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n())
 ```
 
 
 *Which team has the highest winrate (members may change, this evaluates the coach)?
 ```{r}
 #Highest WR of all teams
-CompleteData %>%
+CleanCompleteData2 %>%
   filter(!is.na(team)) %>%
   group_by(team, league) %>%
   summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
   arrange(desc(Wins), desc(WR))
 
 #Only in Majors
-CompleteData %>%
+CleanCompleteData2 %>%
   filter(!is.na(team) & (league %in% Majors)) %>%
   group_by(team, league) %>%
   summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
   arrange(desc(Wins), desc(WR))
 
 #Considering teams as a whole (and this evaluates coaches, not players, teams) have played enough games that I don't have to sort by "Wins" first to see a valuable win rate, also sorting by league to get an idea for best team in each league
-CompleteData %>%
+CleanCompleteData2 %>%
   filter(!is.na(team) & (league %in% Majors) & is.na(player)) %>% group_by(team, league) %>%
   summarize(WR = sum(result)/n(), Wins = sum(result), totalG = n()) %>%
   arrange(league, desc(WR))
@@ -168,40 +252,52 @@ Top teams from each Major region and MSI highest WR:
 *LCK: DWG KIA (DWG) 82% WR
 *LCS: Cloud9 (C9) 65% WR 
 *LEC: MAD Lions (MAD) 66% WR
-*LPL: Royal Never Give Up (RNG) 72% WR
-*MSI: Royal Never Give Up (RNG) 77% WR
+*LPL: Royal Never Give Up (RNG) 72% WR !!!Notably after cleaned data, EDward Gaming is now at a 72% WR instead of RNG
+*MSI: Royal Never Give Up (RNG) 77% WR !!!And RNG remains at the top of MSI but with a 78% WR
 
 I think it was my rudimentary understanding (and loose knowledge prior of these wins) as these teams are long time region dominators and I expected RNG to win Worlds (because they did beat DWG at MSI), but it ended up being DWG KIA.
 
 *What things are most consistent in a fast win (A fast win will be defined as faster than (or equal to) 25 mins)? I do not care about Majors for this question, though fast wins will be more present in non-majors for sure (by nature and my knowledge of the game) 25 mins = 1500s. So removing individual players and looking at generalized teamwide stats, making the gametime less than or equal to 1500 seconds and making the result a win. Looking at early stats and total stats (so firsts and totals really)
 ```{r}
 #Shockingly enough, it is actually more efficent for me to do this and list out only necessary things for early game
-FastWins <- CompleteData %>%
+FastWins <- CleanCompleteData2 %>%
   filter(gameLengthSeconds <= 1500 & is.na(player) & result == 1) %>%
   group_by(gameid) %>%
   select(gameid, team, league, game, side, gameLengthSeconds, result, teamkills, teamdeaths, firstblood, firstdragon, dragons, infernals, mountains, clouds, oceans, elders, firstherald, heralds, firstbaron, barons, firsttower, towers, firstmidtower, firsttothreetowers, inhibitors, dpm, damagetakenperminute, visionscore, monsterkillsenemyjungle, goldat10, goldat15, xpat10, xpat15, csat10, csat15, killsat10, killsat15, assistsat10, assistsat15, deathsat10, deathsat15)
+
+FastWins #added to be Seen
 
 #This is still alot, reducing to fewer columns for the purpose of this I am designating first blood, first dragon, first herald and first tower as the most important early game objectives. I will compare how winning teams did in these categories compared to losing teams.
 
 FastWins2 <- FastWins %>%
   select(gameid, team, league, side, firstblood, firstdragon, firstherald, firsttower, result)
 
+FastWins #added to be Seen
+
 FW3 <- FastWins2 %>%
   ungroup() %>% count(firstblood, firstdragon, firstherald, firsttower) %>% arrange(desc(n))#shows no NAs and aranged to see which combination of these early things is most important.
 
+FW3 #added to be seen
+
 #Moving onto losses so I can compare
-FastLoss <- CompleteData %>%
+FastLoss <- CleanCompleteData2 %>%
   filter(gameLengthSeconds <= 1500 & is.na(player) & result == 0) %>%
   group_by(gameid) %>%
   select(gameid, team, league, game, side, gameLengthSeconds, result, teamkills, teamdeaths, firstblood, firstdragon, dragons, infernals, mountains, clouds, oceans, elders, firstherald, heralds, firstbaron, barons, firsttower, towers, firstmidtower, firsttothreetowers, inhibitors, dpm, damagetakenperminute, visionscore, monsterkillsenemyjungle, goldat10, goldat15, xpat10, xpat15, csat10, csat15, killsat10, killsat15, assistsat10, assistsat15, deathsat10, deathsat15)
 
+FastLoss #added to be seen
+
 FastLoss2 <- FastLoss %>%
   select(gameid, team, league, side, firstblood, firstdragon, firstherald, firsttower, result)
+
+FastLoss2 #added to be seen
 
 #Losses for comparison
 FL3 <- FastLoss2 %>%
   ungroup() %>%
   count(firstblood, firstdragon, firstherald, firsttower) %>% arrange(desc(n))
+
+FL3 #added to be seen
 
 #joining for ACTUAL COMP
 FW3 %>%
@@ -224,7 +320,9 @@ But what teams that won secured none of those objectives. It happened 23 times, 
 FastWins %>%
   filter(firstblood == 0 & firstdragon == 0 & firstherald == 0 & firsttower == 0) #pulling up the games where that is the case, where the four objectives that seemingly increase chances of winning if secured first are no there. 
 ```
-Right off the bat, it is important to note that none of these major "comebacks" as I will call them were in a Major league, so this is likely less the result of excessive skill and more from mistakes the opponent team made. Also, very interesting to me is that only one of these games was played from the "Red" side.
+Right off the bat, it is important to note that none of these major "comebacks" as I will call them were in a Major league,** so this is likely less the result of excessive skill and more from mistakes the opponent team made. Also, very interesting to me is that only one of these games was played from the "Red" side.
+
+**Updates to this from a few years later, that line was likely written in haste. It is clear that the LPL is listed (a Major league) and for some reason the match with Game_id "ESPORTSTMNT04_1880348" is duplicated beyond belief! And it is duplicated in the CLEAN Data which means that there is likely even more cleaning that I needed to do. 
 
 
 A note about sides:
@@ -235,7 +333,7 @@ A note about sides:
 There is actually an age old debate about how "Red" side is considered an "auto loss," how accurate is that?
 
 ```{r}
-CompleteData %>% 
+CleanCompleteData2 %>% 
   group_by(side) %>%
   summarize(wins = (sum(result)), totalGames = n(), WR = (wins/totalGames))
 ```
@@ -256,13 +354,13 @@ Actually a decent amount in Majors. 82 Majors games were fast wins compared to t
 
 ```{r}
 #basically just copied code from above to add to it
-CompleteData %>% 
+CleanCompleteData2 %>% 
   filter(league %in% Majors) %>%
   group_by(side) %>%
   summarize(wins = (sum(result)), totalGames = n(), WR = (wins/totalGames))
 
 #For Academy
-CompleteData %>% 
+CleanCompleteData2 %>% 
   filter(league %in% Academy) %>%
   group_by(side) %>%
   summarize(wins = (sum(result)), totalGames = n(), WR = (wins/totalGames))
@@ -271,7 +369,7 @@ Wow. It is WORSE the better you get, blue side advantage marginally becomes grea
 
 Another question I have is then this, which side typically wins faster.
 ```{r}
-CompleteData %>%
+CleanCompleteData2 %>%
   filter(gameLengthSeconds <= 1500 & is.na(player)) %>% #reminder that a fast game is under or equal to 25 mins or 1500 secs.
   group_by(side) %>%
   summarize(wins = sum(result), totalGames = n(), WR = (wins/totalGames))
